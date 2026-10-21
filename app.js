@@ -1,3 +1,4 @@
+window.onerror = (m, f, l) => { const x = document.getElementById('slist'); if (x) x.innerHTML = '<li class="empty">Ошибка в коде: ' + m + ' (строка ' + l + ')</li>'; };
 const $ = s => document.querySelector(s);
 const au = $('#au');
 let db, tracks = [], curId = null, objUrl = null, shuffle = false, repeat = false, found = [];
@@ -16,6 +17,7 @@ const saveTrack = t => wait(store('readwrite').put(t));
 const removeTrack = id => wait(store('readwrite').delete(id));
 
 /* ---------- Утилиты ---------- */
+const get = async (u, ms = 15000) => { const c = new AbortController(), t = setTimeout(() => c.abort(), ms); try { return await fetch(u, { signal: c.signal }); } catch (e) { throw new Error(e.name === 'AbortError' ? 'источник не отвечает (таймаут)' : 'нет доступа к источнику: ' + (e.message || e)); } finally { clearTimeout(t); } };
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const fmt = s => isFinite(s) ? Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0') : '0:00';
 let tm; const toast = t => { const m = $('#msg'); m.textContent = t; m.className = 'show'; clearTimeout(tm); tm = setTimeout(() => m.className = '', 2800); };
@@ -90,7 +92,7 @@ async function searchIA(q) {
   // Простой запрос; лицензию фильтруем уже на нашей стороне
   const u = 'https://archive.org/advancedsearch.php?q=' + encodeURIComponent(q + ' AND mediatype:audio') +
     '&fl%5B%5D=identifier&fl%5B%5D=title&fl%5B%5D=creator&fl%5B%5D=licenseurl&rows=60&sort%5B%5D=downloads+desc&output=json';
-  const r = await fetch(u);
+  const r = await get(u);
   if (!r.ok) throw new Error('Internet Archive ответил ошибкой ' + r.status);
   const j = await r.json();
   const open = d => /creativecommons|publicdomain/i.test([].concat(d.licenseurl || '').join(' '));
@@ -100,7 +102,7 @@ async function searchIA(q) {
   }));
 }
 async function iaTracks(item) {
-  const m = await (await fetch('https://archive.org/metadata/' + item.ia)).json();
+  const m = await (await get('https://archive.org/metadata/' + item.ia)).json();
   const lic = (m.metadata?.licenseurl || '').replace(/^https?:\/\/(www\.)?/, '');
   return (m.files || []).filter(f => /mp3/i.test(f.format)).slice(0, 30).map(f => ({
     title: f.title || f.name.replace(/\.mp3$/i, ''), artist: item.artist, lic,
@@ -111,7 +113,7 @@ async function searchJam(q) {
   const k = localStorage.getItem('jkey');
   if (!k) throw new Error('Добавьте Jamendo client_id во вкладке «Настройки»');
   const u = `https://api.jamendo.com/v3.0/tracks/?client_id=${encodeURIComponent(k)}&format=json&limit=20&search=${encodeURIComponent(q)}&audiodlformat=mp32`;
-  const j = await (await fetch(u)).json();
+  const j = await (await get(u)).json();
   return (j.results || []).map(r => ({
     title: r.name, artist: r.artist_name, lic: (r.license_ccurl || '').replace(/^https?:\/\/(www\.)?/, ''),
     url: r.audiodownload_allowed ? r.audiodownload : r.audio, stream: r.audio
@@ -123,13 +125,15 @@ function renderFound() {
     ${t.ia ? '<button data-a="open">Треки</button>' : '<button data-a="listen" aria-label="Слушать">▶</button><button data-a="dl" aria-label="Скачать">⬇</button>'}</li>`).join('')
     : '<li class="empty">Ничего не найдено.</li>';
 }
-$('#sf').onsubmit = async e => {
-  e.preventDefault();
+async function doSearch(e) {
+  if (e) e.preventDefault();
   const q = $('#sq').value.trim(); if (!q) return;
-  toast('Ищу…');
+  $('#slist').innerHTML = '<li class="empty">Ищу «' + esc(q) + '»…</li>'; toast('Ищу…');
   try { found = await ($('#src').value === 'ia' ? searchIA(q) : searchJam(q)); renderFound(); toast('Найдено: ' + found.length); }
   catch (err) { found = []; const m = err.message || 'Нет соединения с источником'; $('#slist').innerHTML = '<li class="empty">Ошибка поиска: ' + esc(m) + '</li>'; toast('Ошибка поиска'); }
-};
+}
+$('#sf').onsubmit = doSearch;
+$('#gosearch').onclick = doSearch;
 $('#slist').onclick = async e => {
   const b = e.target.closest('button'); if (!b) return;
   const i = +b.closest('li').dataset.i, t = found[i];

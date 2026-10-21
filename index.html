@@ -7,11 +7,11 @@
 <title>NexaMusic</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
 <header>
-  <h1>NexaMusic</h1>
+  <h1>NexaMusic <small style="font-size:12px;color:var(--mute)">v3</small></h1>
   <nav>
     <button data-tab="lib" class="on">Библиотека</button>
     <button data-tab="find">Поиск</button>
@@ -28,7 +28,7 @@
     <form id="sf" class="tools">
       <input type="search" id="sq" placeholder="Артист или название">
       <select id="src"><option value="ia">Internet Archive</option><option value="jam">Jamendo</option></select>
-      <button class="chip on">Найти</button>
+      <button type="submit" class="chip on" id="gosearch">Найти</button>
     </form>
     <p class="note">Показываются только открытые источники. Проверяйте лицензию трека (CC, общественное достояние).</p>
     <ul id="slist"></ul>
@@ -54,6 +54,6 @@
 </div>
 <div id="msg"></div>
 <audio id="au" preload="metadata"></audio>
-<script src="app.js"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>
