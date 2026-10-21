@@ -87,11 +87,17 @@ if ('mediaSession' in navigator) try { navigator.mediaSession.setActionHandler('
 
 /* ---------- Открытые источники ---------- */
 async function searchIA(q) {
-  // Только материалы с лицензиями Creative Commons
-  const query = `(${q}) AND mediatype:audio AND licenseurl:*creativecommons.org*`;
-  const u = 'https://archive.org/advancedsearch.php?q=' + encodeURIComponent(query) + '&fl[]=identifier&fl[]=title&fl[]=creator&rows=20&output=json';
-  const j = await (await fetch(u)).json();
-  return j.response.docs.map(d => ({ ia: d.identifier, title: d.title, artist: [].concat(d.creator || 'Internet Archive')[0] }));
+  // Простой запрос; лицензию фильтруем уже на нашей стороне
+  const u = 'https://archive.org/advancedsearch.php?q=' + encodeURIComponent(q + ' AND mediatype:audio') +
+    '&fl%5B%5D=identifier&fl%5B%5D=title&fl%5B%5D=creator&fl%5B%5D=licenseurl&rows=60&sort%5B%5D=downloads+desc&output=json';
+  const r = await fetch(u);
+  if (!r.ok) throw new Error('Internet Archive ответил ошибкой ' + r.status);
+  const j = await r.json();
+  const open = d => /creativecommons|publicdomain/i.test([].concat(d.licenseurl || '').join(' '));
+  return j.response.docs.filter(open).slice(0, 25).map(d => ({
+    ia: d.identifier, title: d.title, artist: [].concat(d.creator || 'Internet Archive')[0],
+    lic: [].concat(d.licenseurl)[0].replace(/^https?:\/\/(www\.)?/, '')
+  }));
 }
 async function iaTracks(item) {
   const m = await (await fetch('https://archive.org/metadata/' + item.ia)).json();
@@ -121,8 +127,8 @@ $('#sf').onsubmit = async e => {
   e.preventDefault();
   const q = $('#sq').value.trim(); if (!q) return;
   toast('Ищу…');
-  try { found = await ($('#src').value === 'ia' ? searchIA(q) : searchJam(q)); renderFound(); }
-  catch (err) { toast(err.message || 'Нет соединения с источником'); }
+  try { found = await ($('#src').value === 'ia' ? searchIA(q) : searchJam(q)); renderFound(); toast('Найдено: ' + found.length); }
+  catch (err) { found = []; const m = err.message || 'Нет соединения с источником'; $('#slist').innerHTML = '<li class="empty">Ошибка поиска: ' + esc(m) + '</li>'; toast('Ошибка поиска'); }
 };
 $('#slist').onclick = async e => {
   const b = e.target.closest('button'); if (!b) return;
