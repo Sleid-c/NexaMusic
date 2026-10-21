@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e1117">
+<title>NexaMusic</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>NexaMusic</h1>
+  <nav>
+    <button data-tab="lib" class="on">Библиотека</button>
+    <button data-tab="find">Поиск</button>
+    <button data-tab="set">Настройки</button>
+  </nav>
+</header>
+<main>
+  <section id="lib">
+    <div class="tools"><input type="search" id="lq" placeholder="Поиск в библиотеке"><button class="chip" id="addf">Свои файлы</button></div>
+    <input type="file" id="file" accept="audio/*" multiple hidden>
+    <ul id="llist"></ul>
+  </section>
+  <section id="find" hidden>
+    <form id="sf" class="tools">
+      <input type="search" id="sq" placeholder="Артист или название">
+      <select id="src"><option value="ia">Internet Archive</option><option value="jam">Jamendo</option></select>
+      <button class="chip on">Найти</button>
+    </form>
+    <p class="note">Показываются только открытые источники. Проверяйте лицензию трека (CC, общественное достояние).</p>
+    <ul id="slist"></ul>
+  </section>
+  <section id="set" hidden>
+    <label>Jamendo client_id (бесплатно на devportal.jamendo.com)
+      <input id="jkey" placeholder="например 1a2b3c4d">
+    </label>
+    <button class="chip on" id="savek">Сохранить ключ</button>
+    <p class="note" id="stor"></p>
+  </section>
+</main>
+<div id="bar">
+  <div id="now">Выберите трек</div>
+  <div class="row"><span id="cur">0:00</span><input type="range" id="seek" min="0" max="1000" value="0" aria-label="Перемотка"><span id="dur">0:00</span></div>
+  <div class="row c">
+    <button id="shuf" aria-label="Перемешать">⇄</button>
+    <button id="prev" aria-label="Назад">⏮</button>
+    <button id="play" class="big" aria-label="Играть">▶</button>
+    <button id="next" aria-label="Вперёд">⏭</button>
+    <button id="rep" aria-label="Повтор">↻</button>
+  </div>
+</div>
+<div id="msg"></div>
+<audio id="au" preload="metadata"></audio>
+<script src="app.js"></script>
+</body>
+</html>
