@@ -1,5 +1,5 @@
-const C = 'nexamusic-v3';
-const FILES = ['./', 'index.html', 'style.css?v=3', 'app.js?v=3', 'manifest.webmanifest', 'icon.svg'];
+const C = 'nexamusic-v5';
+const FILES = ['./', 'index.html', 'style.css?v=5', 'app.js?v=5', 'manifest.webmanifest', 'icon.svg'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(C).then(c => c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== C).map(x => caches.delete(x)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', e => {

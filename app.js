@@ -17,7 +17,7 @@ const saveTrack = t => wait(store('readwrite').put(t));
 const removeTrack = id => wait(store('readwrite').delete(id));
 
 /* ---------- Утилиты ---------- */
-const get = async (u, ms = 15000) => { const c = new AbortController(), t = setTimeout(() => c.abort(), ms); try { return await fetch(u, { signal: c.signal }); } catch (e) { throw new Error(e.name === 'AbortError' ? 'источник не отвечает (таймаут)' : 'нет доступа к источнику: ' + (e.message || e)); } finally { clearTimeout(t); } };
+const get = async (u, ms = 30000) => { const c = new AbortController(), t = setTimeout(() => c.abort(), ms); try { return await fetch(u, { signal: c.signal }); } catch (e) { throw new Error(e.name === 'AbortError' ? 'источник не отвечает (таймаут 30 с)' : 'нет доступа к источнику: ' + (e.message || e)); } finally { clearTimeout(t); } };
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const fmt = s => isFinite(s) ? Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0') : '0:00';
 let tm; const toast = t => { const m = $('#msg'); m.textContent = t; m.className = 'show'; clearTimeout(tm); tm = setTimeout(() => m.className = '', 2800); };
@@ -89,17 +89,24 @@ if ('mediaSession' in navigator) try { navigator.mediaSession.setActionHandler('
 
 /* ---------- Открытые источники ---------- */
 async function searchIA(q) {
-  // Простой запрос; лицензию фильтруем уже на нашей стороне
-  const u = 'https://archive.org/advancedsearch.php?q=' + encodeURIComponent(q + ' AND mediatype:audio') +
-    '&fl%5B%5D=identifier&fl%5B%5D=title&fl%5B%5D=creator&fl%5B%5D=licenseurl&rows=60&sort%5B%5D=downloads+desc&output=json';
-  const r = await get(u);
-  if (!r.ok) throw new Error('Internet Archive ответил ошибкой ' + r.status);
-  const j = await r.json();
+  const base = encodeURIComponent(q + ' AND mediatype:audio');
   const open = d => /creativecommons|publicdomain/i.test([].concat(d.licenseurl || '').join(' '));
-  return j.response.docs.filter(open).slice(0, 25).map(d => ({
-    ia: d.identifier, title: d.title, artist: [].concat(d.creator || 'Internet Archive')[0],
-    lic: [].concat(d.licenseurl)[0].replace(/^https?:\/\/(www\.)?/, '')
-  }));
+  const map = d => ({ ia: d.identifier, title: d.title, artist: [].concat(d.creator || 'Internet Archive')[0],
+    lic: [].concat(d.licenseurl)[0].replace(/^https?:\/\/(www\.)?/, '') });
+  let docs, err;
+  try { // быстрый интерфейс поиска
+    const r = await get('https://archive.org/services/search/v1/scrape?q=' + base + '&fields=identifier,title,creator,licenseurl&count=60', 12000);
+    if (!r.ok) throw new Error('код ' + r.status);
+    docs = (await r.json()).items;
+  } catch (e1) {
+    err = e1;
+    try { // запасной интерфейс
+      const r = await get('https://archive.org/advancedsearch.php?q=' + base + '&fl%5B%5D=identifier&fl%5B%5D=title&fl%5B%5D=creator&fl%5B%5D=licenseurl&rows=40&output=json', 20000);
+      if (!r.ok) throw new Error('код ' + r.status);
+      docs = (await r.json()).response.docs;
+    } catch (e2) { throw new Error('Internet Archive не отвечает на запросы поиска. Попробуйте источник Jamendo. (' + e2.message + ')'); }
+  }
+  return (docs || []).filter(open).slice(0, 25).map(map);
 }
 async function iaTracks(item) {
   const m = await (await get('https://archive.org/metadata/' + item.ia)).json();
